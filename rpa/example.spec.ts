@@ -35,6 +35,17 @@ function dateToAT(date: Date) {
   return date.toLocaleDateString('DE-AT', {dateStyle: 'medium'})
 }
 
+function parseDateAT(dateStringAT: string) {
+  const d = new Date();
+  const [day, month, year] = dateStringAT.split('.').map(parseInt);
+  d.setFullYear(year);
+  d.setMonth(month -1);
+  d.setDate(day);
+  d.setMinutes(0);
+  d.setSeconds(0);
+  d.setMilliseconds(0);
+  return d.getTime();
+}
 test('open timetac report', async ({page}) => {
   await loginTimetac(page);
   await checkTimeTacMain(page);
@@ -115,6 +126,8 @@ test('open timetac report', async ({page}) => {
     const description = content[1];
     data.push([date, hours, `\`${description}\``]);
   }
+
+  data.sort(([aDate, , aDesc], [bDate, , bDesc]) => aDate === bDate ? aDesc.localeCompare(bDesc) : parseDateAT(aDate) - parseDateAT(bDate))
 
   fs.writeFileSync('report.md', data.join('\n'));
 });
