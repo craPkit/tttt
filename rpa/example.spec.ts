@@ -31,6 +31,10 @@ async function loginTimetac(page: Page) {
   await button.click();
 }
 
+function dateToAT(date: Date) {
+  return date.toLocaleDateString('DE-AT', {dateStyle: 'medium'})
+}
+
 test('open timetac report', async ({page}) => {
   await loginTimetac(page);
   await checkTimeTacMain(page);
@@ -63,8 +67,10 @@ test('open timetac report', async ({page}) => {
   await expect(item).toBeVisible();
   await item.click();
 
-  await (page.getByLabel('Startdatum:')).fill('22.03.2024');
-  await (page.getByLabel('Enddatum:')).fill('31.03.2024');
+  await (page.getByLabel('Startdatum:')).fill(process.env.TT_START ?? dateToAT( new Date()));
+  if (process.env.TT_END) {
+    await (page.getByLabel('Enddatum:')).fill(process.env.TT_END);
+  }
 
   await (page.locator('#statistic_project_combo-trigger-picker')).click();
 
