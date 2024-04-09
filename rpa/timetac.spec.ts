@@ -90,11 +90,11 @@ test('open timetac report', async ({page}) => {
 
   // * scroll lazy rendered view until project item is visible
   let projItem: Locator;
-  const table = page.locator('.projecttask-combo-selection .x-grid-item-container');
+  const gridContainer = page.locator('.projecttask-combo-selection .x-grid-item-container');
   do {
-    await table.locator('table').first().scrollIntoViewIfNeeded();
+    await gridContainer.locator('table').first().scrollIntoViewIfNeeded();
 
-    projItem = table.getByText(process.env.TT_PROJECT, {exact: false});
+    projItem = gridContainer.getByText(process.env.TT_PROJECT, {exact: false});
   } while (!await projItem.isVisible({timeout: 50}));
 
   await (projItem).click();
