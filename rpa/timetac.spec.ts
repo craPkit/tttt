@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+dotenv.config({path: path.resolve(__dirname, '..', '.env')});
 
 function openTimetac(page: Page) {
   return page.goto(process.env.TT_URL ?? 'https://go.timetac.com/adesso');
@@ -39,13 +39,14 @@ function parseDateAT(dateStringAT: string) {
   const d = new Date();
   const [day, month, year] = dateStringAT.split('.').map(parseInt);
   d.setFullYear(year);
-  d.setMonth(month -1);
+  d.setMonth(month - 1);
   d.setDate(day);
   d.setMinutes(0);
   d.setSeconds(0);
   d.setMilliseconds(0);
   return d.getTime();
 }
+
 test('open timetac report', async ({page}) => {
   await loginTimetac(page);
   await checkTimeTacMain(page);
@@ -78,7 +79,7 @@ test('open timetac report', async ({page}) => {
   await expect(item).toBeVisible();
   await item.click();
 
-  await (page.getByLabel('Startdatum:')).fill(process.env.TT_START ?? dateToAT( new Date()));
+  await (page.getByLabel('Startdatum:')).fill(process.env.TT_START ?? dateToAT(new Date()));
   if (process.env.TT_END) {
     await (page.getByLabel('Enddatum:')).fill(process.env.TT_END);
   }

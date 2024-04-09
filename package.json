@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "playwright test --ui",
-    "extract": "playwright test"
+    "extract": "playwright test rpa/timetac.spec.ts",
+    "log-jira": "playwright test rpa/jira.spec.ts"
   },
   "keywords": [],
   "author": "",
