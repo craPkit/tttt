@@ -12,14 +12,21 @@ type DataRow = [date: string, hours: string, desc: string];
 test('read ozg components', async ({ page }) => {
   test.setTimeout(1000 * 30);
 
+  const existing = fs.readFileSync('components.md').toString();
+  const components = existing ? parseComponents(existing) : [];
+
   const content = fs.readFileSync('report.md').toString();
-  const rows = parseContent(content);
+  const rows = parseReportContent(content);
 
   await parseAndOpenJira(page, rows[0]);
   await loginJira(page);
 
   let lastIssue = '';
   const issueMap = new Map<string, string>();
+  // * initialize with existing data just to retain information – current data should still be fetched
+  for (const [key, val] of components) {
+    issueMap.set(key, val);
+  }
 
   for (const row of rows) {
     if (!row) break;
@@ -37,7 +44,7 @@ test('read ozg components', async ({ page }) => {
       issueMap.set(issueId, component?.trim());
     }
   }
-  const entries = [...issueMap.entries()];
+  const entries = [...issueMap.entries()].sort(([aKey], [bKey]) => parseInt(aKey, 10) - parseInt(bKey, 10));
 
   fs.writeFileSync('components.md', entries.map((row) => row.join(': ')).join('\n'));
 });
@@ -46,7 +53,7 @@ test('fill jira', async ({ page }) => {
   test.setTimeout(1000 * 60);
 
   const content = fs.readFileSync('report.md').toString();
-  const rows = parseContent(content);
+  const rows = parseReportContent(content);
 
   await parseAndOpenJira(page, rows[0]);
   await loginJira(page);
@@ -112,7 +119,7 @@ test('fill jira', async ({ page }) => {
   }
 });
 
-function parseContent(content: string): DataRow[] {
+function parseReportContent(content: string): DataRow[] {
   return content
     .split('\n')
     .map((row) => {
@@ -123,6 +130,13 @@ function parseContent(content: string): DataRow[] {
     })
     .filter((row) => row.length === 3)
     .sort(([, , aDesc], [, , bDesc]) => aDesc.localeCompare(bDesc)) as DataRow[];
+}
+
+function parseComponents(content: string) {
+  return content
+    .split('\n')
+    .map((row) => row.split(': '))
+    .filter((row) => row[0]);
 }
 
 function parseRow(row: DataRow) {
