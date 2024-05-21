@@ -100,6 +100,12 @@ test('fill jira', async ({ page }) => {
 
     await page.getByRole('button', { name: 'Log' }).click();
 
+    try {
+      await page.getByLabel('Close').click();
+    } catch (e) {
+      // continue
+    }
+
     await page.locator('#log-work-dialog').waitFor({
       state: 'hidden',
     });
