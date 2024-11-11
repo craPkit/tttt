@@ -14,16 +14,26 @@ npm ci
 * A Jira instance that uses Work Logs ;)  
 * VPN connection to access Jira, if necessary  
 * setup your .env  
-  * feel free to PR more docs! ;)  
+  * start by `cp example.env .env` and edit  
+  * `TT_URL`: your company's TimeTac instance URL  
+  * `TT_USER`: your personal TimeTac user name (usually without email-suffix)
+  * `TT_PASS`: your user's TimeTac password
+  * `TT_PROJECT`: the TimeTac project (not task) associated with your client's Jira instance
+  * `TT_START`: start date for collecting TimeTac data (DE-AT format)
+  * `JIRA_URL`: Your client's Jira instance URL, excluding any suffixes (assuming standard Jira paths, if that exists)
+  * `JIRA_USER`: your Jira user ID (usually the full email-address)
+  * `JIRA_PASS`: your user's Jira password
+  * `JRIA_MONTHS`: a list of shortened Month Names compatible with your Jira locale (usually determined by your Browser/System)
 
 ## How-to
 
-1. npm run start
-2. from Playwright's console, run `open timetac report`  
-   3. Retry on error, check env configuration in between  
+0. Log your work in TimeTac and start each log's message with the correct Jira issue key.  
+1. `npm run start`
+2. From Playwright's console, run `open timetac report`.  
+   3. Retry on error, check env configuration in between.  
    4. Sometimes TimeTac's internal IDs or even page flows might change. Adapt the scripts accordingly!  
 4. Check the output ./report.md for correctness. Never trust bots!  
-5. from Playwright's console, run `fill jira`  
+5. From Playwright's console, run `fill jira`.  
    6. This already accounts for a few known Jira quirks, but I guess each installation might have its own.  
    8. If the script fails, check Jira reports for submitted work log   
    7. Please PR any work-arounds!  
