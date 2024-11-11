@@ -8,7 +8,8 @@ This package is heavily misusing playwright for RPA, so get over it.
 
 ## Setup
 
-npm ci
+`git clone` and  
+`npm ci`
 
 ## Prerequisites  
 * A Jira instance that uses Work Logs ;)  
