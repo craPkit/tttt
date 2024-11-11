@@ -1,15 +1,13 @@
-/** @format */
-
-import { expect, Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import path from 'path';
+import { loginJira, openJira, parseAndOpenJira } from '../utils/jira.util';
+import { parseComponents, parseReportContent, parseRow } from '../utils/data.util';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-type DataRow = [date: string, hours: string, desc: string];
-
-test('read ozg components', async ({ page }) => {
+test('read Components', async ({ page }) => {
   test.setTimeout(1000 * 30);
 
   const existing = fs.readFileSync('components.md').toString();
@@ -33,9 +31,25 @@ test('read ozg components', async ({ page }) => {
 
     const { issueId, issuePrefix } = parseRow(row);
 
-    if (lastIssue !== issueId) {
-      lastIssue = issueId;
-      await openJira(page, issuePrefix, issueId);
+    if (lastIssue === issueId) {
+      continue;
+    }
+    lastIssue = issueId;
+    await openJira(page, issuePrefix, issueId);
+
+    try {
+      if (
+        (
+          await page.getByText(/^M - TVWK/).textContent({
+            timeout: 100,
+          })
+        ).startsWith('M - TVWK')
+      ) {
+        issueMap.set(issueId, 'TVWK');
+        continue;
+      }
+    } catch (e) {
+      // never mind
     }
 
     const component = await page.locator('#components-field').textContent();
@@ -50,7 +64,7 @@ test('read ozg components', async ({ page }) => {
 });
 
 test('fill jira', async ({ page }) => {
-  test.setTimeout(1000 * 60);
+  test.setTimeout(1000 * 120);
 
   const content = fs.readFileSync('report.md').toString();
   const rows = parseReportContent(content);
@@ -63,7 +77,8 @@ test('fill jira', async ({ page }) => {
   for (const row of rows) {
     if (!row) break;
 
-    const { issue, issuePrefix, issueId, date, note, jiraTimeString } = parseRow(row);
+    const { issue, issuePrefix, issueId, date, note, minutes } = parseRow(row);
+    const jiraTimeString = `${minutes}m`;
 
     if (lastIssue !== issueId) {
       lastIssue = issueId;
@@ -118,68 +133,3 @@ test('fill jira', async ({ page }) => {
     });
   }
 });
-
-function parseReportContent(content: string): DataRow[] {
-  return content
-    .split('\n')
-    .map((row) => {
-      const parts = row.split(/^([\d.]+?),([\d.]+?),`(.+?)`$/);
-      parts.shift();
-      parts.pop();
-      return parts;
-    })
-    .filter((row) => row.length === 3)
-    .sort(([, , aDesc], [, , bDesc]) => aDesc.localeCompare(bDesc)) as DataRow[];
-}
-
-function parseComponents(content: string) {
-  return content
-    .split('\n')
-    .map((row) => row.split(': '))
-    .filter((row) => row[0]);
-}
-
-function parseRow(row: DataRow) {
-  const [date, hours, description] = row;
-  const [issue, note] = description?.split(':').map(trimDelimiters);
-  const [issuePrefix, issueId] = issue.split(/[ -]/).map(trimDelimiters);
-
-  const [h, hourFractions] = hours.split('.');
-  const jiraTimeString = `${h}h ${parseFloat(`0.${hourFractions}`) * 60}m`;
-
-  return {
-    date,
-    issue,
-    note,
-    issuePrefix,
-    issueId,
-    jiraTimeString,
-  };
-}
-
-function parseAndOpenJira(page: Page, row: DataRow) {
-  if (!row) throw new Error('data is malformed');
-  const { issuePrefix, issueId } = parseRow(row);
-  return openJira(page, issuePrefix, issueId);
-}
-
-function openJira(page: Page, issuePrefix: string, issueId: string) {
-  return page.goto(`${process.env.JIRA_URL}/tasks/browse/${issuePrefix}-${issueId ?? 1}`);
-}
-
-async function loginJira(page: Page) {
-  const button = page.getByRole('button', { name: 'Anmelden' });
-  await expect(button).toBeVisible();
-  const name = page.getByLabel('Benutzername');
-  await expect(name).toBeVisible();
-  const pass = page.getByLabel('Passwort');
-  await expect(pass).toBeVisible();
-
-  await name.fill(process.env.JIRA_USER);
-  await pass.fill(process.env.JIRA_PASS);
-  await button.click();
-}
-
-function trimDelimiters(str: string) {
-  return [...str].filter((char) => char !== '`').join('');
-}

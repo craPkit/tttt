@@ -1,57 +1,27 @@
-import {test, expect, Page, Locator} from '@playwright/test';
+import { test, expect, Page, Locator } from '@playwright/test';
 import * as fs from 'fs';
 import dotenv from 'dotenv';
 import path from 'path';
+import {
+  DataRow,
+  Data,
+  dateToAT,
+  parseDateAT,
+  stringHoursToNumericMinutes,
+  readAndPrepareData
+} from '../utils/data.util';
+import { checkTimeTacMain, loginTimetac } from '../utils/timetac.util';
+import { groupBy, map } from 'lodash';
 
-dotenv.config({path: path.resolve(__dirname, '..', '.env')});
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-function openTimetac(page: Page) {
-  return page.goto(process.env.TT_URL ?? 'https://go.timetac.com/adesso');
-}
+test('open timetac report', async ({ page }) => {
+  test.setTimeout(1000 * 30);
 
-async function checkTimeTacMain(page: Page) {
-  await expect(page.locator('#TimetacHeaderLogo')).toBeVisible();
-  await page.locator('#loadingOverlay').waitFor({
-    state: "hidden"
-  });
-}
-
-async function loginTimetac(page: Page) {
-  await openTimetac(page);
-
-  const button = page.getByRole('button', {name: 'Login'});
-  // await expect(button).toBeVisible();
-  const name = page.locator('#userName');
-  // await expect(name).toBeVisible();
-  const pass = page.locator('#userPass');
-  // await expect(pass).toBeVisible();
-
-  await name.fill(process.env.TT_USER);
-  await pass.fill(process.env.TT_PASS);
-  await button.click();
-}
-
-function dateToAT(date: Date) {
-  return date.toLocaleDateString('DE-AT', {dateStyle: 'medium'})
-}
-
-function parseDateAT(dateStringAT: string) {
-  const d = new Date();
-  const [day, month, year] = dateStringAT.split('.').map(parseInt);
-  d.setFullYear(year);
-  d.setMonth(month - 1);
-  d.setDate(day);
-  d.setMinutes(0);
-  d.setSeconds(0);
-  d.setMilliseconds(0);
-  return d.getTime();
-}
-
-test('open timetac report', async ({page}) => {
   await loginTimetac(page);
   await checkTimeTacMain(page);
 
-  if (!await page.locator('#panel_left_time_tracker-bodyWrap').isVisible()) {
+  if (!(await page.locator('#panel_left_time_tracker-bodyWrap').isVisible())) {
     await page.getByLabel('erweitern').click();
   }
 
@@ -71,7 +41,7 @@ test('open timetac report', async ({page}) => {
   await selectTrigger.click();
 
   await page.locator('#menu_filter_statistic_report_combo-picker').waitFor({
-    state: 'visible'
+    state: 'visible',
   });
 
   // open auswertung
@@ -79,14 +49,14 @@ test('open timetac report', async ({page}) => {
   await expect(item).toBeVisible();
   await item.click();
 
-  await (page.getByLabel('Startdatum:')).fill(process.env.TT_START ?? dateToAT(new Date()));
+  await page.getByLabel('Startdatum:').fill(process.env.TT_START ?? dateToAT(new Date()));
   if (process.env.TT_END) {
-    await (page.getByLabel('Enddatum:')).fill(process.env.TT_END);
+    await page.getByLabel('Enddatum:').fill(process.env.TT_END);
   }
 
-  await (page.locator('#statistic_project_combo-trigger-picker')).click();
+  await page.locator('#statistic_project_combo-trigger-picker').click();
 
-  await (page.getByText('Alle entfernen')).click();
+  await page.getByText('Alle entfernen').click();
 
   // * scroll lazy rendered view until project item is visible
   let projItem: Locator;
@@ -94,43 +64,24 @@ test('open timetac report', async ({page}) => {
   do {
     await gridContainer.locator('table').first().scrollIntoViewIfNeeded();
 
-    projItem = gridContainer.getByText(process.env.TT_PROJECT, {exact: false});
-  } while (!await projItem.isVisible({timeout: 50}));
+    projItem = gridContainer.getByText(process.env.TT_PROJECT, { exact: false });
+  } while (!(await projItem.isVisible({ timeout: 50 })));
 
-  await (projItem).click();
-  await (page.getByText('OK')).click();
+  await projItem.click();
+  await page.getByText('OK').click();
 
-  await page.getByRole('button', {name: 'Anzeigen', exact: true}).click();
+  await page.getByRole('button', { name: 'Anzeigen', exact: true }).click();
   const resultsPanel = page.locator('#grid_statistic_per_employee_and_date-bodyWrap');
   await expect(resultsPanel).toBeVisible();
 
-  await page.locator('#grid_statistic_per_employee_and_date .x-mask').waitFor({state: 'hidden'});
+  await page.locator('#grid_statistic_per_employee_and_date .x-mask').waitFor({ state: 'hidden' });
 
   const results = resultsPanel.locator('.x-grid-item-container');
 
   // *** read data
-  let date: string;
-  const data: [date: string, hours: string, description: string][] = [];
-  for (const row of await results.locator('table').all()) {
-    const content = (await Promise.all((await row.locator('td').all()).map(async (node) => (await node.textContent()).trim())));
-    if (content.length === 1) {
-      continue;
-    }
+  const dataRows = await readAndPrepareData(results);
 
-    date = content[0] || date;
-
-    const hours = content[2];
-    if (!hours) {
-      continue;
-    }
-
-    const description = content[1];
-    data.push([date, hours, `\`${description}\``]);
-  }
-
-  data.sort(([aDate, , aDesc], [bDate, , bDesc]) => aDate === bDate ? aDesc.localeCompare(bDesc) : parseDateAT(aDate) - parseDateAT(bDate))
-
-  fs.writeFileSync('report.md', data.join('\n'));
+  fs.writeFileSync('report.md', dataRows.join('\n'));
 });
 
 // test('get started link', async ({ page }) => {
